@@ -92,23 +92,213 @@ raphael-linux\
 
 | 脚本 | 路径依赖 | 处理建议 |
 |---|---|---|
-| `.\05-APK源码\build.ps1` | 第 11 行 `$PY = "E:\develop\python\python3.8.8\python.exe"`，第 14 行 `$env:JAVA_HOME = "E:\develop\jdk\jdk17"` | 该路径为我电脑的安装路径，如果你的 Python/JDK 不在这两个路径，先改这两行 |
-| `.\03-工具\flash_rom.ps1` | 默认 `$RomDir = "C:\raphael-rom"`，要求 `fastboot.exe` 与脚本在同一文件夹 | 运行时加 `-RomDir "你解压后的镜像目录"`；把 `fastboot.exe` 放在 `.\工具\` 即可 |
-| 其他脚本 | 使用 `$PSScriptRoot`、`os.path.dirname(__file__)` 或手机内路径 | 无 PC 端硬编码路径问题 |
+## 2.3 脚本路径依赖说明（先看这个）
 
-其他脚本（`build_uboot_menu.py`、`switch-android`、`99-raphael-switch.sh`、`setup_android.sh`、`rapsh.py`、`flash_uboot_menu.sh`、`install_hook.sh`）均无 PC 端硬编码路径，可直接使用。
+下面几个脚本有 PC 端路径依赖，使用前请先检查，并按说明修改成你自己的环境：
 
-### 恢复包脚本路径说明（`02-恢复包\restore-kit\`）
+### 2.3.1 `.\05-APK源码\build.ps1` —— 构建 SwitchToDebian.apk
+
+**当前硬编码路径（在我电脑上的）：**
+
+```powershell
+# 第 11 行
+$PY = "E:\develop\python\python3.8.8\python.exe"
+
+# 第 14 行
+$env:JAVA_HOME = "E:\develop\jdk\jdk17"
+```
+
+**你需要改成你自己的：**
+
+```powershell
+# 如果你装的是 Python 3.11，路径可能是：
+$PY = "C:\Users\你的用户名\AppData\Local\Programs\Python\Python311\python.exe"
+
+# 如果你装的是 JDK 21，路径可能是：
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
+```
+
+**修改方法：** 用记事本打开 `.\05-APK源码\build.ps1`，把这两行里的路径改成你电脑上实际安装的 Python 和 JDK 路径，保存后重新运行脚本即可。
+
+---
+
+### 2.3.2 `.\03-工具\flash_rom.ps1` —— 刷入 MIUI 原厂 ROM
+
+**当前默认设置：**
+
+```powershell
+$RomDir = "C:\raphael-rom"
+```
+
+脚本要求 `fastboot.exe` 与脚本在同一文件夹（即 `.\03-工具\`）。
+
+**你需要改成你自己的：**
+
+运行时不要修改脚本文件，直接在命令行里传参数：
+
+```powershell
+# 把 "F:\红米K20Pro相关\raphael_images_V12.5.6.0.RFKCNXM_...\images" 换成你解压后的 images 目录
+.\03-工具\flash_rom.ps1 -RomDir "F:\红米K20Pro相关\raphael_images_V12.5.6.0.RFKCNXM_20211025.0000.00_11.0_cn\images"
+```
+
+或者先把 `fastboot.exe` 复制到 `.\03-工具\`，再运行脚本。
+
+---
+
+### 2.3.3 其他脚本（无 PC 端硬编码路径）
+
+`build_uboot_menu.py`、`switch-android`、`99-raphael-switch.sh`、`setup_android.sh`、`rapsh.py`、`flash_uboot_menu.sh`、`install_hook.sh` 均使用 `$PSScriptRoot`、`os.path.dirname(__file__)` 或手机内路径，没有 PC 端硬编码路径，可直接使用。
+
+---
+
+### 2.3.4 恢复包脚本路径说明（`02-恢复包\restore-kit\`）
 
 下面几个脚本虽然没有硬编码成绝对路径，但用了**脚本所在目录的相对路径**，解压位置不同需要注意：
 
-| 脚本 | 路径依赖 | 处理建议 |
+#### `restore-android.ps1` —— 把手机刷成“启动 Android”
+
+**脚本位置：** `02-恢复包\restore-kit\restore-android.ps1`
+
+**它会去找的文件（都在脚本同目录下）：**
+
+| 文件 | 用途 |
+|---|---|
+| `pc-tools\fastboot.exe` | PC 端 fastboot 工具 |
+| `boot-android-rooted.img` | Magisk 已打补丁的 Android boot 镜像 |
+| `dtbo.img` | 原厂 dtbo |
+
+**使用前请确认：**
+
+```powershell
+# 解压恢复包后，目录结构应该是这样：
+02-恢复包\restore-kit\
+├── restore-android.ps1
+├── restore-linux.ps1
+├── pc-tools\
+│   ├── fastboot.exe
+│   ├── AdbWinApi.dll
+│   └── AdbWinUsbApi.dll
+├── u-boot.img
+├── dtbo.img
+└── boot-android-rooted.img
+```
+
+**运行：**
+
+```powershell
+# 手机先进 ABL fastboot（关机 → 音量下 + 电源）
+.\02-恢复包\restore-kit\restore-android.ps1
+```
+
+> **注意：** `boot-android-rooted.img` **只对 MIUI V12.5.6.0 (V12.5.6.0.RFKCNXM) 有效**。如果你刷了别的 ROM 版本，需要用 Magisk 重新打补丁生成你的 `boot.img`，然后把文件改名为 `boot-android-rooted.img` 放在这里，或者在运行脚本时用参数指定：
+
+```powershell
+.\02-恢复包\restore-kit\restore-android.ps1 -BootImage "F:\你的路径\boot.img"
+```
+
+---
+
+#### `restore-linux.ps1` —— 把手机刷成“启动 Linux (U-Boot + Debian)”
+
+**脚本位置：** `02-恢复包\restore-kit\restore-linux.ps1`
+
+**它会去找的文件（都在脚本同目录下）：**
+
+| 文件 | 用途 |
+|---|---|
+| `pc-tools\fastboot.exe` | PC 端 fastboot 工具 |
+| `u-boot.img` | 带双系统菜单的 U-Boot 镜像 |
+| `dtbo.img` | 原厂 dtbo（会被擦成全 0，Linux 启动时必须擦） |
+
+**运行：**
+
+```powershell
+# 手机先进 ABL fastboot（关机 → 音量下 + 电源）
+.\02-恢复包\restore-kit\restore-linux.ps1
+```
+
+---
+
+#### `install-on-debian.sh` —— 在 Debian 里一键装 `sudo switch-android`
+
+**脚本位置：** `02-恢复包\restore-kit\install-on-debian.sh`
+
+**它会去找的文件（都在脚本同目录下）：**
+
+| 文件 | 用途 | 放到哪 |
 |---|---|---|
-| `restore-android.ps1` | `Split-Path -Parent $MyInvocation.MyCommand.Path`，找同目录的 `pc-tools\fastboot.exe`、`boot-android-rooted.img`、`dtbo.img` | 解压恢复包后保持 `pc-tools/` 与 `.ps1` 同目录即可；`boot-android-rooted.img` 只对 **MIUI V12.5.6.0** 有效，换 ROM 版本需改成你的原厂 `boot.img` |
-| `restore-linux.ps1` | 同上，找同目录的 `pc-tools\fastboot.exe`、`u-boot.img`、`dtbo.img` | 同目录即可 |
-| `install-on-debian.sh` | `$HERE=$(dirname "$0")`，找同目录的 `u-boot.img`、`dtbo.img`、`boot-android-rooted.img` | 把脚本放在跟这三个镜像同一个目录里执行 |
-| `switch-android`（Debian 侧） | 固定写死 `/boot`（即 ESP，本机 fstab 用 `PARTLABEL=cache`）、`/dev/disk/by-partlabel/boot`、`/dev/disk/by-partlabel/dtbo` | 如果你的 ESP 不挂在 `/boot`，或分区标签不是 `boot`/`dtbo`，请相应修改 |
-| `99-raphael-switch.sh`（Android 侧） | 固定写死 `/data/raphael/u-boot.img`、`/dev/block/by-name/boot`、`/dev/block/by-name/dtbo` | 需要提前把 `u-boot.img` 推到手机 `/data/raphael/`，且分区标签需为 `boot`/`dtbo` |
+| `u-boot.img` | U-Boot 镜像 | ESP（`/boot`，即 cache 分区） |
+| `dtbo.img` | 原厂 dtbo | ESP（`/boot`，即 cache 分区） |
+| `boot-android-rooted.img` | Magisk 已打补丁的 Android boot | ESP（`/boot`，即 cache 分区），重命名为 `android-boot.img` |
+
+**使用方法：**
+
+```bash
+# 在 Debian 里，把整个 restore-kit 目录拷进去，比如放到 /root/
+sudo sh /root/restore-kit/install-on-debian.sh
+```
+
+脚本会自动把这三个镜像复制到 ESP（`/boot`）里，并安装 `switch-android` 到 `/usr/local/bin/`。
+
+---
+
+#### `switch-android` —— Debian 侧切换脚本（运行在手机 Debian 里）
+
+**脚本位置：** 安装后在手机 `/usr/local/bin/switch-android`
+
+**它用了固定的硬编码路径：**
+
+| 路径 | 含义 |
+|---|---|
+| `/boot` | ESP 挂载点（本机 fstab 用 `PARTLABEL=cache`，所以 ESP 挂在 `/boot`） |
+| `/dev/disk/by-partlabel/boot` | Android boot 分区设备节点 |
+| `/dev/disk/by-partlabel/dtbo` | dtbo 分区设备节点 |
+
+**如果你需要修改：**
+
+用记事本打开 `/usr/local/bin/switch-android`，修改第 11–15 行：
+
+```bash
+ESP=/boot                                    # 改成你实际挂载 ESP 的路径
+BOOT_IMG="$ESP/android-boot.img"
+DTBO_IMG="$ESP/dtbo.img"
+BOOT_DEV=/dev/disk/by-partlabel/boot        # 改成你实际的 boot 分区设备节点
+DTBO_DEV=/dev/disk/by-partlabel/dtbo        # 改成你实际的 dtbo 分区设备节点
+```
+
+---
+
+#### `99-raphael-switch.sh` —— Android 侧 Magisk 开机钩子（运行在手机 Android 里）
+
+**脚本位置：** 安装后在手机 `/data/adb/service.d/99-raphael-switch.sh`
+
+**它用了固定的硬编码路径：**
+
+| 路径 | 含义 |
+|---|---|
+| `/data/raphael/u-boot.img` | U-Boot 镜像存放位置（需要提前推进手机） |
+| `/dev/block/by-name/boot` | Android boot 分区设备节点 |
+| `/dev/block/by-name/dtbo` | dtbo 分区设备节点 |
+
+**使用前准备：**
+
+```bash
+# 在 PC 端，把 u-boot.img 推到手机
+adb push u-boot.img /sdcard/Download/
+adb shell su -c 'mkdir -p /data/raphael'
+adb shell su -c 'cp /sdcard/Download/u-boot.img /data/raphael/u-boot.img'
+```
+
+**如果你需要修改：**
+
+用记事本打开 `/data/adb/service.d/99-raphael-switch.sh`，修改第 11–14 行：
+
+```bash
+FLAG1=/data/adb/to-linux
+FLAG2=/data/media/0/to-linux
+SRC=/data/raphael/u-boot.img          # 改成你实际放 u-boot.img 的路径
+LOG=/data/raphael/switch.log
+```
 
 ---
 
@@ -566,7 +756,7 @@ Debian  ✓ → sudo switch-android → 重启 → Android ✓
 ```powershell
 # 1) 先试冷启动：长按电源 15 秒 → 再长按电源开机
 # 2) 仍不行就手动进 fastboot：关机 → 音量下 + 电源
-Expand-Archive 02-恢复包\raphael-dualboot-restore-kit.zip -DestinationPath . -Force
+Expand-Archive 02-恢复包\raphael-dualboot-restore-kit.zip -DestinationPath . -Force  #恢复包要先自己制作好
 .\restore-kit\restore-android.ps1     # 回 Android
 .\restore-kit\restore-linux.ps1       # 或回 Linux
 ```
