@@ -98,13 +98,25 @@ raphael-linux\
 
 其他脚本（`build_uboot_menu.py`、`switch-android`、`99-raphael-switch.sh`、`setup_android.sh`、`rapsh.py`、`flash_uboot_menu.sh`、`install_hook.sh`）均无 PC 端硬编码路径，可直接使用。
 
+### 恢复包脚本路径说明（`02-恢复包\restore-kit\`）
+
+下面几个脚本虽然没有硬编码成绝对路径，但用了**脚本所在目录的相对路径**，解压位置不同需要注意：
+
+| 脚本 | 路径依赖 | 处理建议 |
+|---|---|---|
+| `restore-android.ps1` | `Split-Path -Parent $MyInvocation.MyCommand.Path`，找同目录的 `pc-tools\fastboot.exe`、`boot-android-rooted.img`、`dtbo.img` | 解压恢复包后保持 `pc-tools/` 与 `.ps1` 同目录即可；`boot-android-rooted.img` 只对 **MIUI V12.5.6.0** 有效，换 ROM 版本需改成你的原厂 `boot.img` |
+| `restore-linux.ps1` | 同上，找同目录的 `pc-tools\fastboot.exe`、`u-boot.img`、`dtbo.img` | 同目录即可 |
+| `install-on-debian.sh` | `$HERE=$(dirname "$0")`，找同目录的 `u-boot.img`、`dtbo.img`、`boot-android-rooted.img` | 把脚本放在跟这三个镜像同一个目录里执行 |
+| `switch-android`（Debian 侧） | 固定写死 `/boot`（即 ESP，本机 fstab 用 `PARTLABEL=cache`）、`/dev/disk/by-partlabel/boot`、`/dev/disk/by-partlabel/dtbo` | 如果你的 ESP 不挂在 `/boot`，或分区标签不是 `boot`/`dtbo`，请相应修改 |
+| `99-raphael-switch.sh`（Android 侧） | 固定写死 `/data/raphael/u-boot.img`、`/dev/block/by-name/boot`、`/dev/block/by-name/dtbo` | 需要提前把 `u-boot.img` 推到手机 `/data/raphael/`，且分区标签需为 `boot`/`dtbo` |
+
 ---
 
 ## 3. 分区容量：Linux 和 Android 各分多少空间
 
 手机的存储空间被切成几块，分别给 Android 和 Linux 用。下面是**本机实际使用的分配方案**，你可以直接照用，也可以按第 3.2 节自定义。
 
-### 3.1 默认分配方案
+### 3.1 本机分配方案
 
 | 分区 | 给谁用 | 大小 | 说明 |
 |---|---|---|---|
@@ -129,7 +141,7 @@ raphael-linux\
 文件里有个常量：
 
 ```
-ANDROID_SECTORS=26214400     # 默认对应 100 GB
+ANDROID_SECTORS=26214400     # 对应 100 GB，我这里分100GB给Android 
 ```
 
 **计算方法：**
@@ -319,7 +331,7 @@ USB 网卡固定 IP `172.16.42.1`（Windows 需要装 USB NCM 驱动；也可以
 
 #### 2.2 一键重分区：把 userdata 拆成 `linux` + `userdata`
 
-上游在 initramfs 里内置了 `raphael-repart`，靠内核命令行参数触发。
+上游在 initramfs 里内置了 `raphael-repart`，靠内核命令行参数触发。记得要先修改**Debian 的 initramfs 里的重分区脚本（3.2自定义大小）**。
 
 **操作位置**：在 Debian 里（或从 Windows SSH 进去），编辑 ESP 上的启动项：
 
@@ -335,7 +347,7 @@ sudo reboot
 - 顺手 `resize2fs` 让根文件系统用满容量
 - 自动去掉 `raphael.repart=` 参数，避免下次又跑
 
-> 本机就是这条路线做出来的。默认 Android 分 **100 GiB**（`ANDROID_SECTORS=26214400`），剩下约 368.7 GiB 给 Linux。如果你想自定义容量（比如 Android 只要 50 GB），见上面的"分区容量：Linux 和 Android 各分多少空间"章节，修改 `ANDROID_SECTORS` 常量后，再按本节的步骤加上 `raphael.repart=apply` 重启重跑。
+> 本机就是这条路线做出来的。我这里Android 分 **100 GiB**（`ANDROID_SECTORS=26214400`），剩下约 368.7 GiB 给 Linux。如果你想自定义容量（比如 Android 只要 50 GB），见上面的"分区容量：Linux 和 Android 各分多少空间"章节，修改 `ANDROID_SECTORS` 常量后，再按本节的步骤加上 `raphael.repart=apply` 重启重跑。
 
 ---
 
