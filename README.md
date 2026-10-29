@@ -205,14 +205,33 @@ TWRP 自带 root 权限，可以直接用 `dd`：
    adb pull /sdcard/sda-head-1M.bin .\01-备份\sda-head-1M.bin
    ```
 
-**第三步：备份原厂 boot.img**
+> **如果你已经 root 过了**，不需要临时启动 TWRP，可以直接在 Android 里用 adb shell 执行：
+> ```cmd
+> adb shell su -c "dd if=/dev/block/sda of=/sdcard/sda-head-1M.bin bs=1M count=1"
+> adb pull /sdcard/sda-head-1M.bin .\01-备份\sda-head-1M.bin
+> ```
+
+**第三步：生成 esp.img（Linux 启动分区）**
+ESP 是当前设备专用的 FAT32 分区，不能直接用别人的。生成步骤：
+
+1. 在手机上挂载并查看 ESP 内容：
+   ```cmd
+   adb shell su -c "mount -t vfat /dev/block/by-name/cache /mnt"
+   adb shell su -c "ls /mnt"
+   ```
+2. 把 ESP 整盘打包成镜像：
+   ```cmd
+   adb shell su -c "dd if=/dev/block/by-name/cache of=/sdcard/esp.img bs=4096"
+   adb pull /sdcard/esp.img .\01-备份\esp.img
+   ```
+   生成的 `esp.img` 里包含 `BOOTAA64.EFI`、`vmlinuz`、`initrd.img`、`loader/entries/linux.conf` 等，供后续阶段 3 把 ESP 搬到 `cache` 分区时使用。
+
+> ⚠️ **ESP（esp.img）不可通用**：ESP 是 FAT32 文件系统，里面包含针对当前设备的内核、DTB、启动配置（BOOTAA64.EFI、vmlinuz、initrd.img、loader/entries/linux.conf 等）。**不能直接用别人的 esp.img**，每个设备需要自己制作。
+
+**第三步（续）：备份原厂 boot.img**
 从 MIUI fastboot 包的 `images\` 文件夹里直接复制 `boot.img` 到 `.\01-备份\boot.img`（不需要设备端操作）。
 
-⚠️ **警告**：`sda-head-1M.bin` 是**当前这台设备的 GPT 主分区表备份**，记录了各分区的起始扇区、大小、类型等。不同容量版本（64GB/128GB/256GB/512GB）甚至不同固件批次的分区布局都可能不同，**不能直接复用别人的 sda-head-1M.bin**——每个用户必须用上面的命令**自己 dump 自己设备的 GPT**，刷到别的设备上极易导致无法启动或变砖。
-
-⚠️ **ESP（esp.img）不可通用**：ESP 是 FAT32 文件系统，里面包含针对当前设备的内核、DTB、启动配置（BOOTAA64.EFI、vmlinuz、initrd.img、loader/entries/linux.conf 等）。**不能直接用别人的 esp.img**，每个设备需要自己制作。
-
-> 本机已有的完整备份：`sda-head-1M.bin`（GPT，仅本机有效）、`esp.img`（ESP 整盘，仅本机有效）、`twrp.img`（临时 TWRP，可用于备份操作）、以及设备 100 个全分区 dump。
+> 本机已有的完整备份：`sda-head-1M.bin`（GPT，仅本机有效）、`esp.img`（ESP 整盘，仅本机有效，由本节第 3 步生成）、`twrp.img`（临时 TWRP，可用于备份操作）、以及设备 100 个全分区 dump。
 
 #### 0.4 准备三份镜像
 
