@@ -1,4 +1,4 @@
-# Redmi K20 Pro（raphael / SM8150）Android 11 + Debian 13 双系统完整教程
+# Redmi K20 Pro（raphael / SM8150）Android 11 + Debian 13  phosh双系统教程
 
 > ⚠️ **风险提示**：解锁 Bootloader 会失去保修；操作过程中 `/data` 会被清空，请先备份手机内全部重要数据（照片、文档、微信聊天记录等）。
 >
@@ -9,7 +9,7 @@
 
 ## 建议：使用 agent 执行本项目
 
-如果你有 AI agent（如 Cursor、Windsurf、Cline、或者本对话中的助手），**强烈建议让 agent 来帮你执行这个刷双系统项目**。
+该项目为本人使用deepseek harness一步步实现Debian+MIUI12.5双系统共存的效果，不保证完全没问题，但加上ai辅助的情况下为可实现双系统共存提供一定思路和案例。如果你有 AI agent（如 Cursor、codex、opencode、或者deepseek harness），**强烈建议让 agent 来帮你执行这个刷双系统项目**。
 
 agent 可以：
 - 帮你逐条核对每一步的命令是否正确
@@ -92,7 +92,7 @@ raphael-linux\
 
 | 脚本 | 路径依赖 | 处理建议 |
 |---|---|---|
-| `.\05-APK源码\build.ps1` | 第 11 行 `$PY = "E:\develop\python\python3.8.8\python.exe"`，第 14 行 `$env:JAVA_HOME = "E:\develop\jdk\jdk17"` | 如果你的 Python/JDK 不在这两个路径，先改这两行 |
+| `.\05-APK源码\build.ps1` | 第 11 行 `$PY = "E:\develop\python\python3.8.8\python.exe"`，第 14 行 `$env:JAVA_HOME = "E:\develop\jdk\jdk17"` | 该路径为我电脑的安装路径，如果你的 Python/JDK 不在这两个路径，先改这两行 |
 | `.\03-工具\flash_rom.ps1` | 默认 `$RomDir = "C:\raphael-rom"`，要求 `fastboot.exe` 与脚本在同一文件夹 | 运行时加 `-RomDir "你解压后的镜像目录"`；把 `fastboot.exe` 放在 `.\工具\` 即可 |
 | 其他脚本 | 使用 `$PSScriptRoot`、`os.path.dirname(__file__)` 或手机内路径 | 无 PC 端硬编码路径问题 |
 
@@ -181,13 +181,15 @@ fastboot getvar product                 # 必须显示 raphael
 
 至少备份这三样：
 
-| 备份对象 | 存哪 |
-|---|---|
-| 全部关键分区 | `.\01-备份\sda-head-1M.bin`（GPT 主表，已准备好） |
-| 原厂 boot | 从 ROM 包里取 `images\boot.img` |
-| 个人数据 | 手动拷出 /data 到电脑或云盘 |
+| 备份对象 | 操作命令 | 存哪 |
+|---|---|---|
+| 全部关键分区（GPT 主表） | `adb shell su -c "dd if=/dev/block/sda of=/sdcard/sda-head-1M.bin bs=1M count=1"`<br>`adb pull /sdcard/sda-head-1M.bin .\01-备份\sda-head-1M.bin` | `.\01-备份\sda-head-1M.bin` |
+| 原厂 boot.img | 从 MIUI fastboot 包的 `images\` 文件夹里复制 `boot.img` | `.\01-备份\boot.img` |
+| 个人数据 | `adb pull /sdcard .\备份_个人数据\` | 电脑或云盘 |
 
-> 本机已有的完整备份：`sda-head-1M.bin`（GPT）、`esp.img`（ESP 整盘）、`twrp.img`（临时 TWRP）、以及设备 100 个全分区 dump。
+⚠️ **警告**：`sda-head-1M.bin` 是**当前这台设备的 GPT 主分区表备份**，记录了各分区的起始扇区、大小、类型等。不同容量版本（64GB/128GB/256GB/512GB）甚至不同固件批次的分区布局都可能不同，**不能直接复用别人的 sda-head-1M.bin**——每个用户必须用上面的命令**自己 dump 自己设备的 GPT**，刷到别的设备上极易导致无法启动或变砖。
+
+> 本机已有的完整备份：`sda-head-1M.bin`（GPT，仅本机有效）、`esp.img`（ESP 整盘）、`twrp.img`（临时 TWRP）、以及设备 100 个全分区 dump。
 
 #### 0.4 准备三份镜像
 
