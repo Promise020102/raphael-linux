@@ -153,152 +153,17 @@ $RomDir = "C:\raphael-rom"
 
 ### 2.3.4 恢复包脚本路径说明（`02-恢复包\restore-kit\`）
 
-下面几个脚本虽然没有硬编码成绝对路径，但用了**脚本所在目录的相对路径**，解压位置不同需要注意：
+下面几个脚本用了**脚本所在目录的相对路径**（`Split-Path`、`dirname`），没有硬编码绝对路径，但解压位置不同需要注意文件彼此要在同一目录。详细的逐脚本路径依赖和修改方法，已移到 **第 5.4 节**，以免本章过长。
 
-#### `restore-android.ps1` —— 把手机刷成“启动 Android”
-
-**脚本位置：** `02-恢复包\restore-kit\restore-android.ps1`
-
-**它会去找的文件（都在脚本同目录下）：**
-
-| 文件 | 用途 |
-|---|---|
-| `pc-tools\fastboot.exe` | PC 端 fastboot 工具 |
-| `boot-android-rooted.img` | Magisk 已打补丁的 Android boot 镜像 |
-| `dtbo.img` | 原厂 dtbo |
-
-**使用前请确认：**
-
-```powershell
-# 解压恢复包后，目录结构应该是这样：
-02-恢复包\restore-kit\
-├── restore-android.ps1
-├── restore-linux.ps1
-├── pc-tools\
-│   ├── fastboot.exe
-│   ├── AdbWinApi.dll
-│   └── AdbWinUsbApi.dll
-├── u-boot.img
-├── dtbo.img
-└── boot-android-rooted.img
-```
-
-**运行：**
-
-```powershell
-# 手机先进 ABL fastboot（关机 → 音量下 + 电源）
-.\02-恢复包\restore-kit\restore-android.ps1
-```
-
-> **注意：** `boot-android-rooted.img` **只对 MIUI V12.5.6.0 (V12.5.6.0.RFKCNXM) 有效**。如果你刷了别的 ROM 版本，需要用 Magisk 重新打补丁生成你的 `boot.img`，然后把文件改名为 `boot-android-rooted.img` 放在这里，或者在运行脚本时用参数指定：
-
-```powershell
-.\02-恢复包\restore-kit\restore-android.ps1 -BootImage "F:\你的路径\boot.img"
-```
-
----
-
-#### `restore-linux.ps1` —— 把手机刷成“启动 Linux (U-Boot + Debian)”
-
-**脚本位置：** `02-恢复包\restore-kit\restore-linux.ps1`
-
-**它会去找的文件（都在脚本同目录下）：**
-
-| 文件 | 用途 |
-|---|---|
-| `pc-tools\fastboot.exe` | PC 端 fastboot 工具 |
-| `u-boot.img` | 带双系统菜单的 U-Boot 镜像 |
-| `dtbo.img` | 原厂 dtbo（会被擦成全 0，Linux 启动时必须擦） |
-
-**运行：**
-
-```powershell
-# 手机先进 ABL fastboot（关机 → 音量下 + 电源）
-.\02-恢复包\restore-kit\restore-linux.ps1
-```
-
----
-
-#### `install-on-debian.sh` —— 在 Debian 里一键装 `sudo switch-android`
-
-**脚本位置：** `02-恢复包\restore-kit\install-on-debian.sh`
-
-**它会去找的文件（都在脚本同目录下）：**
-
-| 文件 | 用途 | 放到哪 |
+| 脚本 | 主要依赖文件 | 详情见章节 |
 |---|---|---|
-| `u-boot.img` | U-Boot 镜像 | ESP（`/boot`，即 cache 分区） |
-| `dtbo.img` | 原厂 dtbo | ESP（`/boot`，即 cache 分区） |
-| `boot-android-rooted.img` | Magisk 已打补丁的 Android boot | ESP（`/boot`，即 cache 分区），重命名为 `android-boot.img` |
+| `restore-android.ps1` | `pc-tools\fastboot.exe`、`boot-android-rooted.img`、`dtbo.img` | 第 5.4.1 节 |
+| `restore-linux.ps1` | `pc-tools\fastboot.exe`、`u-boot.img`、`dtbo.img` | 第 5.4.2 节 |
+| `install-on-debian.sh` | `u-boot.img`、`dtbo.img`、`boot-android-rooted.img` | 第 5.4.3 节 |
+| `switch-android`（Debian 侧） | `/boot`、`/dev/disk/by-partlabel/boot`、`/dev/disk/by-partlabel/dtbo` | 第 5.4.4 节 |
+| `99-raphael-switch.sh`（Android 侧） | `/data/raphael/u-boot.img`、`/dev/block/by-name/boot`、`/dev/block/by-name/dtbo` | 第 5.4.5 节 |
 
-**使用方法：**
-
-```bash
-# 在 Debian 里，把整个 restore-kit 目录拷进去，比如放到 /root/
-sudo sh /root/restore-kit/install-on-debian.sh
-```
-
-脚本会自动把这三个镜像复制到 ESP（`/boot`）里，并安装 `switch-android` 到 `/usr/local/bin/`。
-
----
-
-#### `switch-android` —— Debian 侧切换脚本（运行在手机 Debian 里）
-
-**脚本位置：** 安装后在手机 `/usr/local/bin/switch-android`
-
-**它用了固定的硬编码路径：**
-
-| 路径 | 含义 |
-|---|---|
-| `/boot` | ESP 挂载点（本机 fstab 用 `PARTLABEL=cache`，所以 ESP 挂在 `/boot`） |
-| `/dev/disk/by-partlabel/boot` | Android boot 分区设备节点 |
-| `/dev/disk/by-partlabel/dtbo` | dtbo 分区设备节点 |
-
-**如果你需要修改：**
-
-用记事本打开 `/usr/local/bin/switch-android`，修改第 11–15 行：
-
-```bash
-ESP=/boot                                    # 改成你实际挂载 ESP 的路径
-BOOT_IMG="$ESP/android-boot.img"
-DTBO_IMG="$ESP/dtbo.img"
-BOOT_DEV=/dev/disk/by-partlabel/boot        # 改成你实际的 boot 分区设备节点
-DTBO_DEV=/dev/disk/by-partlabel/dtbo        # 改成你实际的 dtbo 分区设备节点
-```
-
----
-
-#### `99-raphael-switch.sh` —— Android 侧 Magisk 开机钩子（运行在手机 Android 里）
-
-**脚本位置：** 安装后在手机 `/data/adb/service.d/99-raphael-switch.sh`
-
-**它用了固定的硬编码路径：**
-
-| 路径 | 含义 |
-|---|---|
-| `/data/raphael/u-boot.img` | U-Boot 镜像存放位置（需要提前推进手机） |
-| `/dev/block/by-name/boot` | Android boot 分区设备节点 |
-| `/dev/block/by-name/dtbo` | dtbo 分区设备节点 |
-
-**使用前准备：**
-
-```bash
-# 在 PC 端，把 u-boot.img 推到手机
-adb push u-boot.img /sdcard/Download/
-adb shell su -c 'mkdir -p /data/raphael'
-adb shell su -c 'cp /sdcard/Download/u-boot.img /data/raphael/u-boot.img'
-```
-
-**如果你需要修改：**
-
-用记事本打开 `/data/adb/service.d/99-raphael-switch.sh`，修改第 11–14 行：
-
-```bash
-FLAG1=/data/adb/to-linux
-FLAG2=/data/media/0/to-linux
-SRC=/data/raphael/u-boot.img          # 改成你实际放 u-boot.img 的路径
-LOG=/data/raphael/switch.log
-```
+> 简要：`boot-android-rooted.img` **只对 MIUI V12.5.6.0 有效**，换 ROM 版本需用 Magisk 重新打补丁。
 
 ---
 
@@ -927,6 +792,161 @@ sudo switch-android                 # 能不能正常切回 Android？
 > 一句话总结：**A11 及以前的 ROM 随便换；A12 以后要保 Linux 就别想了**（除非你愿意重新分区 + 重装 Linux）。
 
 ---
+
+## 5.4 恢复包脚本路径依赖与修改说明（`02-恢复包\restore-kit\`）
+
+下面每个脚本都用了**脚本所在目录的相对路径**（`Split-Path`、`dirname`），没有硬编码绝对路径，但解压到不同电脑或不同目录时，需要按以下说明修改。
+
+---
+
+### `restore-android.ps1` —— PC 端：把手机刷成"启动 Android"
+
+**脚本位置：** `restore-kit\restore-android.ps1`
+
+**它会去找的文件（都在脚本同目录下）：**
+
+| 文件 | 用途 | 如果没有/不匹配怎么办 |
+|---|---|---|
+| `pc-tools\fastboot.exe` | PC 端 fastboot 工具 | 把 `pc-tools/` 文件夹放在脚本同目录 |
+| `boot-android-rooted.img` | Magisk 已打补丁的 Android boot 镜像 | **只对 MIUI V12.5.6.0 有效**。换 ROM 版本需用 Magisk 重新打补丁生成你的 `boot.img`，改名为 `boot-android-rooted.img` 放在这里 |
+| `dtbo.img` | 原厂 dtbo | 从你的 MIUI 包 `images\dtbo.img` 复制 |
+
+**运行前确认目录结构：**
+
+```
+restore-kit\
+├── restore-android.ps1
+├── restore-linux.ps1
+├── pc-tools\
+│   ├── fastboot.exe
+│   ├── AdbWinApi.dll
+│   └── AdbWinUsbApi.dll
+├── u-boot.img
+├── dtbo.img
+└── boot-android-rooted.img
+```
+
+**运行：**
+
+```powershell
+# 手机先进 ABL fastboot（关机 → 音量下 + 电源，屏幕显示 FASTBOOT 兔子）
+.\restore-kit\restore-android.ps1
+```
+
+**换了 ROM 版本？** 用参数指定你的 boot.img：
+
+```powershell
+.\restore-kit\restore-android.ps1 -BootImage "F:\你的路径\boot.img"
+```
+
+---
+
+### `restore-linux.ps1` —— PC 端：把手机刷成"启动 Linux (U-Boot + Debian)"
+
+**脚本位置：** `restore-kit\restore-linux.ps1`
+
+**它会去找的文件（都在脚本同目录下）：**
+
+| 文件 | 用途 |
+|---|---|
+| `pc-tools\fastboot.exe` | PC 端 fastboot 工具 |
+| `u-boot.img` | 带双系统菜单的 U-Boot 镜像 |
+| `dtbo.img` | 原厂 dtbo（Linux 启动时会被擦成全 0） |
+
+**运行：**
+
+```powershell
+# 手机先进 ABL fastboot
+.\restore-kit\restore-linux.ps1
+```
+
+**u-boot.img 从哪来？** 来自上游项目 `linux-xiaomi-raphael-uboot` 编译后的镜像，或者直接用恢复包里的（只对当前这台 raphael 有效，其他设备需重新编译）。
+
+---
+
+### `install-on-debian.sh` —— Debian 侧：一键装 `sudo switch-android`
+
+**脚本位置：** `restore-kit\install-on-debian.sh`
+
+**它会去找的文件（都在脚本同目录下）：**
+
+| 文件 | 用途 | 放到手机哪里 |
+|---|---|---|
+| `u-boot.img` | U-Boot 镜像 | ESP（`/boot`，即 cache 分区） |
+| `dtbo.img` | 原厂 dtbo | ESP（`/boot`，即 cache 分区） |
+| `boot-android-rooted.img` | Magisk 已打补丁的 Android boot | ESP（`/boot`，即 cache 分区），会被复制为 `android-boot.img` |
+
+**使用方法（在 Debian 里执行）：**
+
+```bash
+# 把整个 restore-kit 目录拷到 Debian 里，比如放到 /root/
+sudo sh /root/restore-kit/install-on-debian.sh
+```
+
+脚本会自动把三个镜像复制到 ESP（`/boot`），并安装 `switch-android` 到 `/usr/local/bin/`。
+
+---
+
+### `switch-android` —— Debian 侧切换脚本（运行在手机 Debian 里）
+
+**安装后位置：** 手机 `/usr/local/bin/switch-android`
+
+**它用了固定的硬编码路径：**
+
+| 路径 | 含义 |
+|---|---|
+| `/boot` | ESP 挂载点（本机 fstab 用 `PARTLABEL=cache`） |
+| `/dev/disk/by-partlabel/boot` | Android boot 分区设备节点 |
+| `/dev/disk/by-partlabel/dtbo` | dtbo 分区设备节点 |
+
+**如果你需要修改：**
+
+用文本编辑器打开 `/usr/local/bin/switch-android`，修改第 11–15 行：
+
+```bash
+ESP=/boot                                    # 改成你实际挂载 ESP 的路径
+BOOT_IMG="$ESP/android-boot.img"
+DTBO_IMG="$ESP/dtbo.img"
+BOOT_DEV=/dev/disk/by-partlabel/boot        # 改成你实际的 boot 分区设备节点
+DTBO_DEV=/dev/disk/by-partlabel/dtbo        # 改成你实际的 dtbo 分区设备节点
+```
+
+---
+
+### `99-raphael-switch.sh` —— Android 侧 Magisk 开机钩子（运行在手机 Android 里）
+
+**安装后位置：** 手机 `/data/adb/service.d/99-raphael-switch.sh`
+
+**它用了固定的硬编码路径：**
+
+| 路径 | 含义 |
+|---|---|
+| `/data/raphael/u-boot.img` | U-Boot 镜像存放位置（需要提前推进手机） |
+| `/dev/block/by-name/boot` | Android boot 分区设备节点 |
+| `/dev/block/by-name/dtbo` | dtbo 分区设备节点 |
+
+**使用前准备（PC 端）：**
+
+```bash
+# 把 u-boot.img 推到手机
+adb push u-boot.img /sdcard/Download/
+adb shell su -c 'mkdir -p /data/raphael'
+adb shell su -c 'cp /sdcard/Download/u-boot.img /data/raphael/u-boot.img'
+```
+
+**如果你需要修改：**
+
+用文本编辑器打开 `/data/adb/service.d/99-raphael-switch.sh`，修改第 11–14 行：
+
+```bash
+FLAG1=/data/adb/to-linux
+FLAG2=/data/media/0/to-linux
+SRC=/data/raphael/u-boot.img          # 改成你实际放 u-boot.img 的路径
+LOG=/data/raphael/switch.log
+```
+
+---
+
 
 ## 7. 踩坑记录（按严重程度排序）
 
