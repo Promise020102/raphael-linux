@@ -1,0 +1,36 @@
+#!/bin/sh
+# Switch this phone from Linux (Debian + U-Boot) to Android (Magisk root).
+#
+# Writes the Magisk-patched Android boot image and the dtbo image taken from
+# the ESP (/boot, i.e. the `cache` partition) into flash and reboots. ABL then
+# boots Android through its normal, factory path.
+#
+# Usage:  sudo switch-android
+set -e
+
+ESP=/boot
+BOOT_IMG="$ESP/android-boot.img"
+DTBO_IMG="$ESP/dtbo.img"
+BOOT_DEV=/dev/disk/by-partlabel/boot
+DTBO_DEV=/dev/disk/by-partlabel/dtbo
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "need root: sudo $0" >&2
+    exit 1
+fi
+
+for f in "$BOOT_IMG" "$DTBO_IMG"; do
+    [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }
+done
+
+echo "== writing Android boot image =="
+dd if="$BOOT_IMG" of="$BOOT_DEV" bs=1M conv=fsync
+echo "== writing dtbo =="
+dd if="$DTBO_IMG" of="$DTBO_DEV" bs=1M conv=fsync
+sync
+
+echo "== head of boot partition =="
+dd if="$BOOT_DEV" bs=1 count=8 2>/dev/null | od -An -tx1
+
+echo "== rebooting into Android =="
+reboot

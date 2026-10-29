@@ -1,0 +1,10 @@
+# 大镜像文件，不适合直接推 GitHub，请按需从教程里的下载链接获取
+*.img
+*.7z
+*.zip
+
+# 临时/缓存
+*.log
+classes/
+dexout/
+build/
