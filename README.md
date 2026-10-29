@@ -179,17 +179,40 @@ fastboot getvar product                 # 必须显示 raphael
 
 #### 0.3 备份（非常重要，做双系统过程中 data 会被清）
 
-至少备份这三样：
+备份分两步：先临时启动 TWRP（不刷入任何分区），然后在 TWRP 里备份 GPT 主表。整个过程**不需要 root**。
 
-| 备份对象 | 操作命令 | 存哪 |
-|---|---|---|
-| 全部关键分区（GPT 主表） | `adb shell su -c "dd if=/dev/block/sda of=/sdcard/sda-head-1M.bin bs=1M count=1"`<br>`adb pull /sdcard/sda-head-1M.bin .\01-备份\sda-head-1M.bin` | `.\01-备份\sda-head-1M.bin` |
-| 原厂 boot.img | 从 MIUI fastboot 包的 `images\` 文件夹里复制 `boot.img` | `.\01-备份\boot.img` |
-| 个人数据 | `adb pull /sdcard .\备份_个人数据\` | 电脑或云盘 |
+**第一步：临时启动 TWRP**
+1. 手机关机，按住 **音量下 + 电源** 进入 ABL fastboot（屏幕出现 FASTBOOT 兔子）
+2. 在电脑 `.\工具\` 目录打开命令行，运行：
+   ```cmd
+   fastboot boot ..\01-备份\twrp.img
+   ```
+   等待 TWRP 启动。这是**临时启动**，不会写入任何分区，重启后 TWRP 就会消失。
+
+**第二步：在 TWRP 里备份 GPT 主表**
+TWRP 自带 root 权限，可以直接用 `dd`：
+
+1. 连接电脑，运行：
+   ```cmd
+   adb shell
+   ```
+2. 备份 GPT 主表（前 1MB）：
+   ```sh
+   dd if=/dev/block/sda of=/sdcard/sda-head-1M.bin bs=1M count=1
+   ```
+3. 拉回电脑：
+   ```cmd
+   adb pull /sdcard/sda-head-1M.bin .\01-备份\sda-head-1M.bin
+   ```
+
+**第三步：备份原厂 boot.img**
+从 MIUI fastboot 包的 `images\` 文件夹里直接复制 `boot.img` 到 `.\01-备份\boot.img`（不需要设备端操作）。
 
 ⚠️ **警告**：`sda-head-1M.bin` 是**当前这台设备的 GPT 主分区表备份**，记录了各分区的起始扇区、大小、类型等。不同容量版本（64GB/128GB/256GB/512GB）甚至不同固件批次的分区布局都可能不同，**不能直接复用别人的 sda-head-1M.bin**——每个用户必须用上面的命令**自己 dump 自己设备的 GPT**，刷到别的设备上极易导致无法启动或变砖。
 
-> 本机已有的完整备份：`sda-head-1M.bin`（GPT，仅本机有效）、`esp.img`（ESP 整盘）、`twrp.img`（临时 TWRP）、以及设备 100 个全分区 dump。
+⚠️ **ESP（esp.img）不可通用**：ESP 是 FAT32 文件系统，里面包含针对当前设备的内核、DTB、启动配置（BOOTAA64.EFI、vmlinuz、initrd.img、loader/entries/linux.conf 等）。**不能直接用别人的 esp.img**，每个设备需要自己制作。
+
+> 本机已有的完整备份：`sda-head-1M.bin`（GPT，仅本机有效）、`esp.img`（ESP 整盘，仅本机有效）、`twrp.img`（临时 TWRP，可用于备份操作）、以及设备 100 个全分区 dump。
 
 #### 0.4 准备三份镜像
 
