@@ -114,7 +114,7 @@ raphael-linux\
 | `boot` | 启动开关（放 Android 内核或 U-Boot） | 128 MB | 两个系统共用，写谁就启谁 |
 | `dtbo` | 设备树 | 32 MB | Linux 启动时擦成全 0；回 Android 时要还原 |
 
-两边加起来约 468 GB，正好用完手机可用的存储空间。你不需要手动创建这些分区，阶段 2 会自动帮你分好。
+
 
 ### 3.2 如果你想自定义大小
 
@@ -142,6 +142,8 @@ ANDROID_SECTORS=26214400     # 默认对应 100 GB
 - 53,687,091,200 ÷ 512 = 104,857,600 个扇区
 
 所以把该文件里的 `ANDROID_SECTORS=26214400`（对应 100 GB）改成 `ANDROID_SECTORS=104857600`（对应 50 GB）即可。
+
+> **改完常量后别忘了生效**：回到「阶段 2.2 一键重分区」章节，在 ESP 上加上 `raphael.repart=apply` 参数重启，系统就会按新常量重新划分 `linux` / `userdata` 容量。
 
 改完后要重新打包 initramfs 并刷回手机（或改完后在 Debian 里手动 `update-initramfs -u` 后重启触发 `raphael.repart=apply`），重启即可生效。手动调整分区有数据丢失风险，操作前务必备份。
 
@@ -333,7 +335,7 @@ sudo reboot
 - 顺手 `resize2fs` 让根文件系统用满容量
 - 自动去掉 `raphael.repart=` 参数，避免下次又跑
 
-> 本机就是这条路线做出来的。如果你想自定义容量（比如 Android 只要 50 GB），见上面的"分区容量：Linux 和 Android 各分多少空间"章节，修改脚本常量后再重跑。
+> 本机就是这条路线做出来的。默认 Android 分 **100 GiB**（`ANDROID_SECTORS=26214400`），剩下约 368.7 GiB 给 Linux。如果你想自定义容量（比如 Android 只要 50 GB），见上面的"分区容量：Linux 和 Android 各分多少空间"章节，修改 `ANDROID_SECTORS` 常量后，再按本节的步骤加上 `raphael.repart=apply` 重启重跑。
 
 ---
 
